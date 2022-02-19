@@ -17,6 +17,7 @@ const cookieSession = require("cookie-session");
 const cookieParser = require("cookie-parser");
 let mmm = require('mmmagic'),
       Magic = mmm.Magic;
+let { createProxyMiddleware } = require("http-proxy-middleware");
 
 let magic = new Magic(mmm.MAGIC_MIME_TYPE);
 
@@ -67,6 +68,15 @@ app.use(
 )
 
 app.use(express.static(__dirname + "/app/views"));
+
+app.use(
+    "/",
+    createProxyMiddleware({
+      target: `http://localhost:${process.env.PORT}`,
+      changeOrigin: true,
+    })
+  );
+
 // simple route
 app.get("/", (req, res) => {
     res.sendFile(__dirname + "/app/views/index.html");
