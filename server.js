@@ -46,7 +46,7 @@ mongoose.connect(process.env.MONGO_URI, {useNewUrlParser: true, useUnifiedTopolo
     })
 
 let corsOptions = {
-    origin: [`http://localhost:${process.env.PORT}`]
+    origin: [`https://licenta-deploy.herokuapp.com/`]
 };
 
 app.use(cors(corsOptions));
@@ -68,14 +68,6 @@ app.use(
 )
 
 app.use(express.static(__dirname + "/app/views"));
-
-app.use(
-    "/",
-    createProxyMiddleware({
-      target: `${process.env.HOST}:${process.env.PORT}`,
-      changeOrigin: true,
-    })
-  );
 
 // simple route
 app.get("/", (req, res) => {
@@ -459,7 +451,7 @@ app.post('/fileUpload', [authJwt.verifyToken, authJwt.isStudent], upload.single(
                                 res.status(500).send({message:err});
                                 return;
                             }
-                            res.redirect('localhost:3001');
+                            res.redirect('https://licenta-deploy.herokuapp.com/');
                             deleteLocalUploads();
                             console.log("File upload successful!");
                         })
@@ -470,7 +462,7 @@ app.post('/fileUpload', [authJwt.verifyToken, authJwt.isStudent], upload.single(
                                 res.status(500).send({message:err});
                                 return;
                             }
-                            res.redirect('localhost:3001');
+                            res.redirect('https://licenta-deploy.herokuapp.com/');
                             deleteLocalUploads();
                             console.log("File upload successful!");
                         })
