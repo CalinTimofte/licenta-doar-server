@@ -45,7 +45,7 @@ mongoose.connect(process.env.MONGO_URI, {useNewUrlParser: true, useUnifiedTopolo
     })
 
 let corsOptions = {
-    origin: [`http://localhost:${process.env.PORT || '3001'}`]
+    origin: [`http://localhost:${process.env.PORT}`]
 };
 
 app.use(cors(corsOptions));
@@ -669,7 +669,7 @@ app.get("/logOut", [authJwt.verifyToken], (req, res) =>{
 })
 
 // set port, listen for requests
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 })
