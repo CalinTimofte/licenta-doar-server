@@ -72,7 +72,7 @@ app.use(express.static(__dirname + "/app/views"));
 app.use(
     "/",
     createProxyMiddleware({
-      target: `http://localhost:${process.env.PORT}`,
+      target: `${process.env.HOST}:${process.env.PORT}`,
       changeOrigin: true,
     })
   );
