@@ -17,7 +17,6 @@ const cookieSession = require("cookie-session");
 const cookieParser = require("cookie-parser");
 let mmm = require('mmmagic'),
       Magic = mmm.Magic;
-let { createProxyMiddleware } = require("http-proxy-middleware");
 
 let magic = new Magic(mmm.MAGIC_MIME_TYPE);
 
@@ -46,7 +45,7 @@ mongoose.connect(process.env.MONGO_URI, {useNewUrlParser: true, useUnifiedTopolo
     })
 
 let corsOptions = {
-    origin: [`https://licenta-deploy.herokuapp.com/`]
+    origin: ["https://licenta-deploy.herokuapp.com/"]
 };
 
 app.use(cors(corsOptions));
@@ -68,7 +67,6 @@ app.use(
 )
 
 app.use(express.static(__dirname + "/app/views"));
-
 // simple route
 app.get("/", (req, res) => {
     res.sendFile(__dirname + "/app/views/index.html");
@@ -128,6 +126,12 @@ app.post("/logIn", (req, res) => {
             })
         }
     })
+})
+
+app.get("/logOut", [authJwt.verifyToken], (req, res) =>{
+    res.clearCookie('session');
+    res.clearCookie('loggedIn');
+    res.status(200).send('Logged out');
 })
 
 app.post("/createStudent", [verifySignUp.checkDuplicateUsername, verifySignUp.checkPasswordLength ,verifySignUp.hashPassword],
@@ -215,7 +219,7 @@ app.post("/createProfessor", [verifySignUp.checkDuplicateUsername, verifySignUp.
     });
 });
 
-app.post("/createAdmin", [verifySignUp.checkDuplicateUsername, verifySignUp.checkPasswordLength, verifySignUp.hashPassword], (req, res) => {
+app.post("/createAdmin", [verifySignUp.checkDuplicateUsername, verifySignUp.checkPasswordLength, verifySignUp.hashPassword, authJwt.verifyToken, authJwt.isAdmin], (req, res) => {
     controllers.userController.createAndSaveUser(req.body.userName, req.body.password, 3, (err, data) => {
         if (err) {
             res.status(500).send({ message: err });
@@ -314,26 +318,33 @@ app.put("/deleteUser", [authJwt.verifyToken, authJwt.isAdmin], (req, res) => {
                     return;
                 }
 
+                console.log(student)
                 controllers.classRoomController.ClassRoom.find({classRoomName: student.classRoomName}, (err, classRoom) => {
                     if(err){
                         res.status(500).send({message:err});
                         return;
                     }
 
-                    if(classRoom.length === 0)
+                    if(classRoom.length === 0){
+                        controllers.studentController.Student.findByIdAndDelete(student._id, (err, data) => {
+                            if(err){
+                                res.status(500).send({message:err});
+                                return;
+                            }
+                            return res.status(200).send();
+                        })
                         return res.status(200).send();
+                    }
 
-                    console.log(classRoom[0]);
-                    console.log(" ")
-                    console.log(classRoom[0].studentsIDs.indexOf(student.id));
-                    let sliceIndex = classRoom[0].studentsIDs.indexOf(student.id);
+                    else
+                    {let sliceIndex = classRoom[0].studentsIDs.indexOf(student.id);
                     controllers.classRoomController.ClassRoom.findByIdAndUpdate(classRoom[0]._id, {studentsIDs: [...classRoom[0].studentsIDs.slice(0, sliceIndex), ...classRoom[0].studentsIDs.slice(sliceIndex + 1)]}, (err, data) => {
                         if(err){
                             res.status(500).send({message:err});
                             return;
                         }
 
-                        controllers.studentController.Student.deleteOne({userID: req.body.data._id}, (err, data) => {
+                        controllers.studentController.Student.findByIdAndDelete(student._id, (err, data) => {
                             if(err){
                                 res.status(500).send({message:err});
                                 return;
@@ -342,7 +353,7 @@ app.put("/deleteUser", [authJwt.verifyToken, authJwt.isAdmin], (req, res) => {
                             res.status(200).send();
                         })
                         
-                    })
+                    })}
                 })
             })
         }
@@ -501,7 +512,7 @@ app.post('/getFile', [authJwt.verifyToken, authJwt.isStudent], (req, res) => {
     })
 
 app.post('/updateEnv', [authJwt.verifyToken, authJwt.isStudent], (req, res) => {
-    userController.User.findOne({userName: req.body.userName}).exec((err, user) =>{
+    userController.User.findById({_id: req.userID}).exec((err, user) =>{
         if(err){
             res.status(500).send({message:err});
             return;
@@ -629,19 +640,6 @@ app.get("/getProfessorData", [authJwt.verifyToken, authJwt.isProfessor], (req, r
     })
 })
 
-app.post("/getStudentUserFromProfessor", [authJwt.verifyToken, authJwt.isProfessor], (req, res) => {
-    controllers.userController.User.findById(req.body.userID, (err, user) => {
-        if(err){
-            res.status(500).send({message:err});
-            return;
-        }
-
-        res.status(200).send({
-            userName: user.userName,
-        })
-    })
-})
-
 app.post('/getStudentFiles', [authJwt.verifyToken, authJwt.isProfessor], (req, res) => {
     controllers.fileController.File.find({studentID: req.body.studentID}, (err, files) => {
         if(err){
@@ -657,17 +655,22 @@ app.post('/getStudentFiles', [authJwt.verifyToken, authJwt.isProfessor], (req, r
     })
 })
 
-//misc
-//resource test routes
+app.post('/getProfessorDataStudents', [authJwt.verifyToken, authJwt.isProfessor], (req, res) => {
+    controllers.userController.User.find({_id: {$in: req.body.studentUserIDList}}, (err, data) => {
+        if(err){
+            res.status(500).send({message:err});
+            return;
+        }
 
-app.get("/testAll", userController.allAccess);
-app.get("/testStudent", [authJwt.verifyToken, authJwt.isStudent], userController.studentBoard);
-app.get("/testProfessor", [authJwt.verifyToken, authJwt.isProfessor], userController.professorBoard);
-app.get("/testAdmin", [authJwt.verifyToken, authJwt.isAdmin], userController.adminBoard);
-app.get("/logOut", [authJwt.verifyToken], (req, res) =>{
-    res.clearCookie('session');
-    res.clearCookie('loggedIn');
-    res.send('Logged out');
+        else{
+            let returnArr = [];
+            returnArr = data.map(student => ({userName: student.userName, _id: student._id}))
+            console.log(returnArr);
+            res.status(200).send({
+                users: returnArr,
+            })
+        }
+    })
 })
 
 // set port, listen for requests
