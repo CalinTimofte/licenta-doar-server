@@ -3,7 +3,7 @@ let ClassRoom = require('../models/ClassRoom');
 const createAndSaveClassRoom = (classRoomName, done) => {
     const classRoom = new ClassRoom({classRoomName: classRoomName});
     classRoom.save((err, data) => {
-        if(err) return res.status(500).send({ message: err });
+        if(err) return res.status(500).send({ message: "Probably duplicate classRoomName" });
         done(null, data);
     });
 };
